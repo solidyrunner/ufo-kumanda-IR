@@ -1,49 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="32dp"
-    android:background="#121212">
+    android:background="#121212"
+    android:fillViewport="true">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="UFO IR KONTROL"
-        android:textColor="#FFFFFF"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="40dp" />
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <Button
-        android:id="@+id/btnPower"
-        android:layout_width="match_parent"
-        android:layout_height="80dp"
-        android:backgroundTint="#D32F2F"
-        android:text="AÇ / KAPAT"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="UFO Kumanda Test Paneli"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp" />
 
-    <Button
-        android:id="@+id/btnUp"
-        android:layout_width="match_parent"
-        android:layout_height="65dp"
-        android:layout_marginTop="24dp"
-        android:backgroundTint="#333333"
-        android:text="KADEME YÜKSELT (+)"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp" />
+        <!-- Tüm kodları 1'er saniye arayla deneyen buton -->
+        <Button
+            android:id="@+id/btnAutoScan"
+            android:layout_width="match_parent"
+            android:layout_height="70dp"
+            android:backgroundTint="#FF9800"
+            android:text="OTOMATİK TARA (TÜMÜNÜ DENE)"
+            android:textColor="#000000"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:layout_marginBottom="24dp" />
 
-    <Button
-        android:id="@+id/btnDown"
-        android:layout_width="match_parent"
-        android:layout_height="65dp"
-        android:layout_marginTop="12dp"
-        android:backgroundTint="#333333"
-        android:text="KADEME DÜŞÜR (-)"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tek Tek Kod Deneme:"
+            android:textColor="#AAAAAA"
+            android:textSize="14sp"
+            android:layout_marginBottom="12dp" />
 
-</LinearLayout>
+        <Button
+            android:id="@+id/btnCode1"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:backgroundTint="#D32F2F"
+            android:text="DENE 1 (Standart UK: 0x80)"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnCode2"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:backgroundTint="#D32F2F"
+            android:text="DENE 2 (UK Alternatif: 0x12)"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnCode3"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:backgroundTint="#D32F2F"
+            android:text="DENE 3 (Micatronic: 0x00)"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnCode4"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:backgroundTint="#D32F2F"
+            android:text="DENE 4 (UK-L Serisi: 0x01)"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnCode5"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:backgroundTint="#D32F2F"
+            android:text="DENE 5 (Alf/Line: 0x40BF)"
+            android:layout_marginBottom="8dp" />
+
+    </LinearLayout>
+</ScrollView>
