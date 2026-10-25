@@ -10,72 +10,98 @@
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="20dp">
 
         <TextView
-            android:id="@+id/tvStatus"
+            android:id="@+id/tvCurrentCode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="UFO UK/L Panel Kontrolü (H0-H5)"
-            android:textColor="#4CAF50"
+            android:text="UFO Sinyal Çözücü Hazır"
+            android:textColor="#00E676"
             android:textSize="17sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="24dp" />
-
-        <!-- Asıl UFO UK/L Açma/Kapama Tuşu -->
-        <Button
-            android:id="@+id/btnPower"
-            android:layout_width="match_parent"
-            android:layout_height="75dp"
-            android:backgroundTint="#E53935"
-            android:text="AÇ / KAPAT (POWER)"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="12dp" />
-
-        <!-- H0'dan H1'e Geçiren Kademe Butonları -->
-        <Button
-            android:id="@+id/btnLevelUp"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:backgroundTint="#1E88E5"
-            android:text="KADEME YÜKSELT (+)"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:layout_marginBottom="8dp" />
-
-        <Button
-            android:id="@+id/btnLevelDown"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:backgroundTint="#1E88E5"
-            android:text="KADEME DÜŞÜR (-)"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:layout_marginBottom="24dp" />
-
-        <!-- Tek Tuşla Uyandırma (Power + Kademe + Arka Arkaya) -->
-        <Button
-            android:id="@+id/btnForceWake"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:backgroundTint="#8E24AA"
-            android:text="ZORLA UYANDIR (H0 -> H1)"
-            android:textColor="#FFFFFF"
             android:textStyle="bold"
             android:layout_marginBottom="16dp" />
 
-        <!-- Otomatik Tarayıcı -->
+        <!-- 1. Hızlı Profil Taraması -->
         <Button
-            android:id="@+id/btnScanAll"
+            android:id="@+id/btnScanProfiles"
             android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:backgroundTint="#FB8C00"
-            android:text="TÜM UFO VARYASYONLARINI TARA"
+            android:layout_height="65dp"
+            android:backgroundTint="#D32F2F"
+            android:text="1. BİLİNEN TÜM PROFİLLERİ TARA (60 KOD)"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginBottom="10dp" />
+
+        <!-- 2. Brute Force 256 Komut -->
+        <Button
+            android:id="@+id/btnBruteForce"
+            android:layout_width="match_parent"
+            android:layout_height="65dp"
+            android:backgroundTint="#FF6D00"
+            android:text="2. BRUTE-FORCE TARA (0x00 -> 0xFF)"
             android:textColor="#000000"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Durdur ve Yakala -->
+        <Button
+            android:id="@+id/btnStop"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:backgroundTint="#D50000"
+            android:text="DURDUR / KODU YAKALA"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Manuel İnce Ayar Kontrolleri -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="3"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnPrev"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:backgroundTint="#424242"
+                android:text="◀ 1 GERİ"
+                android:textColor="#FFFFFF" />
+
+            <Button
+                android:id="@+id/btnResend"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="6dp"
+                android:backgroundTint="#2979FF"
+                android:text="TEKRAR AT"
+                android:textColor="#FFFFFF" />
+
+            <Button
+                android:id="@+id/btnNext"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:backgroundTint="#424242"
+                android:text="1 İLERİ ▶"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Bip sesi duyduğunuz an DURDUR'a basın."
+            android:textColor="#888888"
+            android:textSize="13sp" />
 
     </LinearLayout>
 </ScrollView>
