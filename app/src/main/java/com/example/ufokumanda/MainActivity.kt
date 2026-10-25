@@ -12,10 +12,7 @@ class MainActivity : AppCompatActivity() {
 
     private var irManager: ConsumerIrManager? = null
     private lateinit var tvStatus: TextView
-    private lateinit var tvProgress: TextView
-
     @Volatile private var isScanning = false
-    private var currentCmd = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,126 +20,106 @@ class MainActivity : AppCompatActivity() {
 
         irManager = getSystemService(Context.CONSUMER_IR_SERVICE) as? ConsumerIrManager
         tvStatus = findViewById(R.id.tvStatus)
-        tvProgress = findViewById(R.id.tvProgress)
 
         if (irManager == null || !irManager!!.hasIrEmitter()) {
             Toast.makeText(this, "IR Donanımı Bulunamadı!", Toast.LENGTH_LONG).show()
         }
 
-        // 256 Kodluk Tam Taramayı Başlat
-        findViewById<Button>(R.id.btnFullScan).setOnClickListener {
+        // 1. UFO UK/L Gerçek Power: Adres=0x70, Komut=0xA8
+        findViewById<Button>(R.id.btnRealPower).setOnClickListener {
+            send4BytePacket(0x70, 0xA8, "UFO Power (Addr: 0x70, Cmd: 0xA8)")
+        }
+
+        // 2. Kademe (+): Adres=0x70, Komut=0xA2
+        findViewById<Button>(R.id.btnLevelUp).setOnClickListener {
+            send4BytePacket(0x70, 0xA2, "UFO Kademe + (Addr: 0x70, Cmd: 0xA2)")
+        }
+
+        // 3. Kademe (-): Adres=0x70, Komut=0x90
+        findViewById<Button>(R.id.btnLevelDown).setOnClickListener {
+            send4BytePacket(0x70, 0x90, "UFO Kademe - (Addr: 0x70, Cmd: 0x90)")
+        }
+
+        // 4. 0x70 Adresindeki tüm 256 komutu tara
+        findViewById<Button>(R.id.btnScan0x70).setOnClickListener {
             if (!isScanning) {
                 isScanning = true
-                runFullSustainedScan()
+                Thread {
+                    for (cmd in 0..255) {
+                        if (!isScanning) break
+                        runOnUiThread {
+                            tvStatus.text = "Adres: 0x70 | Komut: 0x%02X (%d/255)".format(cmd, cmd)
+                        }
+                        transmitSustained(0x70, cmd, repeats = 4)
+                        Thread.sleep(180)
+                    }
+                    runOnUiThread {
+                        if (isScanning) {
+                            tvStatus.text = "0x70 taraması tamamlandı!"
+                            isScanning = false
+                        }
+                    }
+                }.start()
             }
         }
 
-        // Durdur
+        // 5. Alternatif Cihaz Adreslerini Tara (0x40, 0x86, 0x01, 0x20)
+        findViewById<Button>(R.id.btnScanAddresses).setOnClickListener {
+            if (!isScanning) {
+                isScanning = true
+                val candidateAddresses = intArrayOf(0x40, 0x86, 0x01, 0x20, 0x02, 0x10, 0x77)
+                Thread {
+                    for (addr in candidateAddresses) {
+                        if (!isScanning) break
+                        runOnUiThread {
+                            tvStatus.text = "Adres Deneniyor: 0x%02X (Power: 0xA8)".format(addr)
+                        }
+                        transmitSustained(addr, 0xA8, repeats = 5)
+                        Thread.sleep(600)
+                    }
+                    runOnUiThread {
+                        if (isScanning) {
+                            tvStatus.text = "Adres taraması bitti."
+                            isScanning = false
+                        }
+                    }
+                }.start()
+            }
+        }
+
         findViewById<Button>(R.id.btnStop).setOnClickListener {
             isScanning = false
-            tvProgress.text = "TARAMA DURDURULDU! Son kod: 0x%02X".format(currentCmd)
+            tvStatus.text = "Tarama durduruldu."
         }
-
-        // 1 Geri
-        findViewById<Button>(R.id.btnPrev).setOnClickListener {
-            currentCmd = (currentCmd - 1) and 0xFF
-            sendAndDisplay(currentCmd)
-        }
-
-        // Tekrar Gönder
-        findViewById<Button>(R.id.btnResend).setOnClickListener {
-            sendAndDisplay(currentCmd)
-        }
-
-        // 1 İleri
-        findViewById<Button>(R.id.btnNext).setOnClickListener {
-            currentCmd = (currentCmd + 1) and 0xFF
-            sendAndDisplay(currentCmd)
-        }
-
-        // Hızlı Butonlar
-        findViewById<Button>(R.id.btnQuickA8).setOnClickListener { sendAndDisplay(0xA8) }
-        findViewById<Button>(R.id.btnQuickA2).setOnClickListener { sendAndDisplay(0xA2) }
-        findViewById<Button>(R.id.btnQuick80).setOnClickListener { sendAndDisplay(0x80) }
     }
 
-    private fun sendAndDisplay(cmd: Int) {
-        currentCmd = cmd
-        tvStatus.text = "Kod Gönderiliyor: 0x%02X (%d/255)".format(cmd, cmd)
+    private fun send4BytePacket(address: Int, command: Int, label: String) {
+        tvStatus.text = "Gönderiliyor:\n$label"
         Thread {
-            transmitSustainedNec(0x00, cmd)
+            // 5 tekrar = parazit filtresini aşmak için ~550ms kesintisiz akış
+            transmitSustained(address, command, repeats = 5)
             runOnUiThread {
-                tvProgress.text = "Son Gönderilen: 0x%02X".format(cmd)
+                tvStatus.text = "Gönderildi:\n$label"
             }
         }.start()
     }
 
     /**
-     * 0'dan 255'e kadar her kodu 450ms boyunca kesintisiz basarak tarar.
+     * 4 Ayrı Baytı (Address, ~Address, Command, ~Command) oluşturan 
+     * ve 38 kHz taşıyıcıyla LSB-First ileten NEC motoru
      */
-    private fun runFullSustainedScan() {
-        Thread {
-            for (cmd in 0..255) {
-                if (!isScanning) break
-                currentCmd = cmd
-
-                runOnUiThread {
-                    tvStatus.text = "Taranıyor: Cmd 0x%02X (%d/255)".format(cmd, cmd)
-                    tvProgress.text = "İlerleme: %%%.1f".format((cmd / 255.0) * 100)
-                }
-
-                // 4 tekrar = ~440ms boyunca aralıksız sinyal (filtreyi deler)
-                transmitSustainedNec(0x00, cmd)
-                Thread.sleep(160) // Kodlar arası kısa bekleme
-            }
-
-            runOnUiThread {
-                if (isScanning) {
-                    tvStatus.text = "256 kodun tamamı tarandı!"
-                    tvProgress.text = "Bip sesi duyuldu mu?"
-                    isScanning = false
-                }
-            }
-        }.start()
-    }
-
-    /**
-     * NEC Standart Çerçevesi (4 Tekrarlı Kesintisiz Akış ~450ms)
-     */
-    private fun transmitSustainedNec(address: Int, command: Int) {
+    private fun transmitSustained(address: Int, command: Int, repeats: Int) {
         val manager = irManager ?: return
         val pattern = ArrayList<Int>()
 
-        val invAddress = address.inv() and 0xFF
-        val invCommand = command.inv() and 0xFF
-        val bytes = intArrayOf(address, invAddress, command, invCommand)
+        // 4 Kod Parçası:
+        val b1 = address and 0xFF         // 1. Bayt: Adres
+        val b2 = address.inv() and 0xFF   // 2. Bayt: Adresin Tersi
+        val b3 = command and 0xFF         // 3. Bayt: Komut
+        val b4 = command.inv() and 0xFF   // 4. Bayt: Komutun Tersi
 
-        // 4 tam paket arka arkaya (parazit önleyici MCU filtresini aşar)
-        for (r in 0..3) {
-            // Leader
-            pattern.add(9000)
-            pattern.add(4500)
+        val packet = intArrayOf(b1, b2, b3, b4)
 
-            // 32-bit LSB-First Veri
-            for (b in bytes) {
-                for (bitIdx in 0..7) {
-                    val bit = (b shr bitIdx) and 1
-                    pattern.add(560)
-                    pattern.add(if (bit == 1) 1690 else 560)
-                }
-            }
-
-            // Stop bit
-            pattern.add(560)
-
-            // Paketler arası bekleme boşluğu (40ms)
-            if (r < 3) {
-                pattern.add(40000)
-            }
-        }
-
-        try {
-            manager.transmit(38000, pattern.toIntArray())
-        } catch (_: Exception) {}
-    }
-}
+        for (r in 0 until repeats) {
+            // NEC Leader (9ms HIGH, 4.5ms LOW)
+            pattern.add(9000
