@@ -12,15 +12,21 @@ class MainActivity : AppCompatActivity() {
 
     private var irManager: ConsumerIrManager? = null
     private lateinit var tvStatus: TextView
+    private var isScanning = false
 
-    // UFO UK serilerinde kullanılan aday kodlar (Address, Command)
-    private val candidateCodes = listOf(
-        Pair(0x00, 0x80), // 1. En yaygın UFO Standart Power
-        Pair(0x00, 0x12), // 2. UFO Alternatif Power
-        Pair(0x00, 0x00), // 3. Micatronic Power
-        Pair(0x01, 0x01), // 4. UK-L Power
-        Pair(0x40, 0x80), // 5. Alf/Line Power
-        Pair(0x20, 0x10)  // 6. Ekstra varyasyon
+    // Veritabanlarındaki tüm bilinen UFO, Alf ve Türkiye rezistans kumanda kodları
+    private val necCodes = listOf(
+        Pair("LIRC UFO Power", 0x00FFA857L),
+        Pair("UFO Standart 1", 0x00FF807FL),
+        Pair("UFO UK/Micatronic", 0x00FF02FDL),
+        Pair("UFO Star Power", 0x00FF10EFL),
+        Pair("UFO Line Power", 0x00FFC23DL),
+        Pair("UFO UK Alternatif", 0x00FF12EDL),
+        Pair("UFO Toggle Standart", 0x00FF00FFL),
+        Pair("Alf/Line Hybr.", 0x40BFA857L),
+        Pair("Alf Power", 0x40BF807FL),
+        Pair("UFO V4 Power", 0x00FF48B7L),
+        Pair("UFO V5 Power", 0x00FF6897L)
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,85 +37,138 @@ class MainActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
 
         if (irManager == null || !irManager!!.hasIrEmitter()) {
-            Toast.makeText(this, "IR Verici donanımı bulunamadı!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "IR Donanımı Bulunamadı!", Toast.LENGTH_LONG).show()
         }
 
-        findViewById<Button>(R.id.btnCode1).setOnClickListener { testCode(0) }
-        findViewById<Button>(R.id.btnCode2).setOnClickListener { testCode(1) }
-        findViewById<Button>(R.id.btnCode3).setOnClickListener { testCode(2) }
-        findViewById<Button>(R.id.btnCode4).setOnClickListener { testCode(3) }
-        findViewById<Button>(R.id.btnCode5).setOnClickListener { testCode(4) }
+        // 1. Asıl Aday: LIRC UFO Power (0xA857)
+        findViewById<Button>(R.id.btnMainCandidate).setOnClickListener {
+            sendNec38k(0x00FFA857L)
+            tvStatus.text = "0x00FFA857 yollandı (Orijinal UFO)"
+        }
 
+        // Alternatif hızlı butonlar
+        findViewById<Button>(R.id.btnAlt1).setOnClickListener {
+            sendNec38k(0x00FF02FDL)
+            tvStatus.text = "0x00FF02FD yollandı"
+        }
+
+        findViewById<Button>(R.id.btnAlt2).setOnClickListener {
+            sendNec38k(0x00FF10EFL)
+            tvStatus.text = "0x00FF10EF yollandı"
+        }
+
+        findViewById<Button>(R.id.btnAlt3).setOnClickListener {
+            sendRc5(0, 12) // RC5 Address 0, Command 12 (Power)
+            tvStatus.text = "RC-5 (36 kHz) Sinyali yollandı"
+        }
+
+        // Otomatik Tarama Başlat
         findViewById<Button>(R.id.btnAutoScan).setOnClickListener {
-            runAutoScan()
+            if (!isScanning) {
+                isScanning = true
+                runFullScan()
+            }
+        }
+
+        // Taramayı Durdur
+        findViewById<Button>(R.id.btnStopScan).setOnClickListener {
+            isScanning = false
+            tvStatus.text = "Tarama kullanıcı tarafından durduruldu."
         }
     }
 
-    private fun testCode(index: Int) {
-        val (addr, cmd) = candidateCodes[index]
-        tvStatus.text = "Kod ${index + 1} yollandı (Addr: 0x%02X, Cmd: 0x%02X)".format(addr, cmd)
-        sendNecWithRepeat(addr, cmd)
-    }
-
-    private fun runAutoScan() {
+    private fun runFullScan() {
         Thread {
-            for (i in candidateCodes.indices) {
-                val (addr, cmd) = candidateCodes[i]
+            // Önce tüm NEC kodlarını dene
+            for ((index, item) in necCodes.withIndex()) {
+                if (!isScanning) break
                 runOnUiThread {
-                    tvStatus.text = "Deneniyor (${i + 1}/${candidateCodes.size}): Addr: 0x%02X Cmd: 0x%02X".format(addr, cmd)
+                    tvStatus.text = "Deneniyor [${index + 1}/${necCodes.size}]:\n${item.first} (0x%08X)".format(item.second)
                 }
-                sendNecWithRepeat(addr, cmd)
-                Thread.sleep(1200) // Cihazın tepki vermesi için 1.2 saniye bekle
+                sendNec38k(item.second)
+                Thread.sleep(1200)
             }
+
+            // Ardından RC-5 varyasyonlarını dene
+            val rc5Addresses = intArrayOf(0, 5, 12, 20)
+            for (addr in rc5Addresses) {
+                if (!isScanning) break
+                runOnUiThread {
+                    tvStatus.text = "Deneniyor: RC-5 (36kHz) Addr: $addr Cmd: 12"
+                }
+                sendRc5(addr, 12)
+                Thread.sleep(1200)
+            }
+
             runOnUiThread {
-                tvStatus.text = "Tarama bitti! Bip sesi geldi mi?"
+                if (isScanning) {
+                    tvStatus.text = "Tüm kodlar tarandı! Bip sesi duyuldu mu?"
+                    isScanning = false
+                }
             }
         }.start()
     }
 
     /**
-     * Sinyali tek bir darbe dizisi içinde 2 KEZ TEKRARLAR (Burst/Repeat).
-     * Böylece cihazın parazit önleyici AGC filtresine takılmaz ve Android HAL çakışması yaşanmaz.
+     * Standart 38 kHz NEC Sinyali (MSB-First + 3 Tekrarlı Burst)
      */
-    private fun sendNecWithRepeat(address: Int, command: Int) {
+    private fun sendNec38k(hexCode: Long) {
         val manager = irManager ?: return
         val pattern = ArrayList<Int>()
 
-        val invAddress = address.inv() and 0xFF
-        val invCommand = command.inv() and 0xFF
-        val bytes = intArrayOf(address, invAddress, command, invCommand)
-
-        // Sinyali arka arkaya 2 defa gönder (Araya 40ms boşluk koyarak)
-        for (repeat in 0..1) {
-            // Leader Code: 9ms High, 4.5ms Low
+        // 3 Kez tekrarla (filtreye takılmaması için)
+        for (repeat in 0..2) {
             pattern.add(9000)
             pattern.add(4500)
 
-            // 32-bit Veri (LSB-First)
-            for (b in bytes) {
-                for (bitIdx in 0..7) {
-                    pattern.add(560)
-                    if (((b shr bitIdx) and 1) == 1) {
-                        pattern.add(1690) // Logic 1
-                    } else {
-                        pattern.add(560)  // Logic 0
-                    }
-                }
+            for (i in 31 downTo 0) {
+                val bit = (hexCode shr i) and 1L
+                pattern.add(560)
+                pattern.add(if (bit == 1L) 1690 else 560)
             }
 
-            // Stop Bit
             pattern.add(560)
-
-            // Paketler arası dinleme boşluğu (40 ms)
-            if (repeat == 0) {
-                pattern.add(40000)
-            }
+            pattern.add(40000) // Boşluk
         }
 
         try {
             manager.transmit(38000, pattern.toIntArray())
         } catch (e: Exception) {
-            Toast.makeText(this, "Hata: ${e.message}", Toast.LENGTH_SHORT).show()
+            // Hata logu
+        }
+    }
+
+    /**
+     * 36 kHz Philips RC-5 Protokolü (Manchester Kodlaması)
+     */
+    private fun sendRc5(address: Int, command: Int) {
+        val manager = irManager ?: return
+        val pattern = ArrayList<Int>()
+
+        // 14 Bit: 2 Start biti (1, 1), 1 Toggle (0), 5 bit Adres, 6 bit Komut
+        val data = (1 shl 13) or (1 shl 12) or (0 shl 11) or ((address and 0x1F) shl 6) or (command and 0x3F)
+
+        for (repeat in 0..2) {
+            for (i in 13 downTo 0) {
+                val bit = (data shr i) and 1
+                if (bit == 1) {
+                    // Logic 1: Space (889us), Mark (889us)
+                    pattern.add(889)
+                    pattern.add(889)
+                } else {
+                    // Logic 0: Mark (889us), Space (889us)
+                    pattern.add(889)
+                    pattern.add(889)
+                }
+            }
+            pattern.add(889)
+            pattern.add(40000)
+        }
+
+        try {
+            manager.transmit(36000, pattern.toIntArray())
+        } catch (e: Exception) {
+            // Hata logu
         }
     }
 }
